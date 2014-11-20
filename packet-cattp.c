@@ -26,6 +26,8 @@ static int hf_cattp_seq_nb = -1;
 static int hf_cattp_ack_nb = -1;
 static int hf_cattp_win_size = -1;
 static int hf_cattp_checksum = -1;
+static int hf_cattp_max_sdu_size = -1;
+static int hf_cattp_max_pdu_size = -1;
 static int hf_cattp_header_variable_len = -1;
 static int hf_cattp_data = -1;
 
@@ -44,6 +46,7 @@ static int hf_cattp_data = -1;
 #define OFF_ACK_NB 0x0C
 #define OFF_WIN_SIZE 0x0E
 #define OFF_CHECKSUM 0x10
+#define OFF_HEADER_VARIABLE_AREA 0x12
 
 static const int *flag_fields[] = {
     &hf_cattp_flags_syn,
@@ -95,6 +98,11 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         proto_tree_add_item(cattp_header_tree, hf_cattp_ack_nb, tvb, OFF_ACK_NB, 2, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(cattp_header_tree, hf_cattp_win_size, tvb, OFF_WIN_SIZE, 2, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(cattp_header_tree, hf_cattp_checksum, tvb, OFF_CHECKSUM, 2, ENC_LITTLE_ENDIAN);
+
+        if((header_byte & HF_FLAG_SYN) != 0 && header_len == 0x16) {
+            proto_tree_add_item(cattp_header_tree, hf_cattp_max_sdu_size, tvb, OFF_HEADER_VARIABLE_AREA, 2, ENC_LITTLE_ENDIAN);
+            proto_tree_add_item(cattp_header_tree, hf_cattp_max_pdu_size, tvb, OFF_HEADER_VARIABLE_AREA + 2, 2, ENC_LITTLE_ENDIAN);
+        }
 
         proto_tree_add_item(cattp_data_tree, hf_cattp_data, tvb, header_len, data_len, ENC_STR_HEX);
 
@@ -173,6 +181,12 @@ void proto_register_cattp(void) {
         { &hf_cattp_checksum, {
             "Checksum", "cattp.checksum", FT_UINT16, BASE_DEC,
             NULL, 0, NULL, HFILL }},
+        { &hf_cattp_max_sdu_size, {
+            "Maximum SDU Size", "cattp.max_sdu_size", FT_UINT16, BASE_DEC,
+            NULL, 0, NULL, HFILL }},
+        { &hf_cattp_max_pdu_size, {
+            "Maximum PDU Size", "cattp.max_pdu_size", FT_UINT16, BASE_DEC,
+            NULL, 0, NULL, HFILL }},
         { &hf_cattp_header_variable_len, {
             "Header Variable Area Length", "cattp.header_variable_len", FT_UINT16, BASE_DEC,
             NULL, 0, NULL, HFILL }},
@@ -206,7 +220,6 @@ const char *gen_flag_str(char header_byte) {
     int max_str_size = 0;
     const char *cstr;
     char *str;
-    int offset = 0;
 
     num_flags = sizeof(header_flag_vals)/sizeof(header_flag_vals[0]);
     for(i=0; i<num_flags; i++) {
