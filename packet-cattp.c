@@ -215,24 +215,17 @@ const char *gen_flag_str(char header_byte) {
         }
     }
 
-    printf("Attempting to generate flag str. Num_flags = %d, max_str_size = %d, header_byte = 0x%08x\n", num_flags, max_str_size, header_byte);
 
     str = cstr = (char *) wmem_alloc(wmem_packet_scope(), max_str_size);
     str[0] = '\0';
-    printf("  str[0x%08x] = \"%s\", cstr[0x%08x] = \"%s\"\n", str, str, cstr, cstr);
 
     for(i=0; i<num_flags; i++) {
-        printf("    Checking header byte against 0x%08x", header_flag_vals[i].value);
         if((header_byte & header_flag_vals[i].value) != 0) {
-            printf(", passed - appending %s", header_flag_vals[i].strptr);
             if(cstr[0] != '\0') {
                 str = g_stpcpy(str, ", ");
             }
             str = g_stpcpy(str, header_flag_vals[i].strptr);
-        } else {
-            printf(", failed - not appending %s", header_flag_vals[i].strptr);
         }
-        printf(", str[0x%08x] = \"%s\", cstr[0x%08x] = \"%s\"\n", str, str, cstr, cstr);
     }
 
     if(cstr[0] == '\0') {
