@@ -29,7 +29,12 @@ static int hf_cattp_checksum = -1;
 static int hf_cattp_max_sdu_size = -1;
 static int hf_cattp_max_pdu_size = -1;
 static int hf_cattp_header_variable_len = -1;
+static int hf_cattp_header_variable_area = -1;
 static int hf_cattp_data = -1;
+static int hf_cattp_eack_nbs = -1;
+static int hf_cattp_eack_nb = -1;
+
+#define SIZE_DEFAULT_HEADER 0x12
 
 #define HF_FLAG_SYN 0x80
 #define HF_FLAG_ACK 0x40
@@ -46,7 +51,7 @@ static int hf_cattp_data = -1;
 #define OFF_ACK_NB 0x0C
 #define OFF_WIN_SIZE 0x0E
 #define OFF_CHECKSUM 0x10
-#define OFF_HEADER_VARIABLE_AREA 0x12
+#define OFF_HEADER_VARIABLE_AREA SIZE_DEFAULT_HEADER
 
 static const int *flag_fields[] = {
     &hf_cattp_flags_syn,
@@ -70,6 +75,7 @@ static const value_string header_flag_vals[] = {
 
 static gint ett_cattp = -1;
 static gint ett_cattp_header = -1;
+static gint ett_cattp_header_variable_area = -1;
 static gint ett_cattp_data = -1;
 
 static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
@@ -99,14 +105,23 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         proto_tree_add_item(cattp_header_tree, hf_cattp_win_size, tvb, OFF_WIN_SIZE, 2, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(cattp_header_tree, hf_cattp_checksum, tvb, OFF_CHECKSUM, 2, ENC_LITTLE_ENDIAN);
 
-        if((header_byte & HF_FLAG_SYN) != 0 && header_len == 0x16) {
-            proto_tree_add_item(cattp_header_tree, hf_cattp_max_sdu_size, tvb, OFF_HEADER_VARIABLE_AREA, 2, ENC_LITTLE_ENDIAN);
-            proto_tree_add_item(cattp_header_tree, hf_cattp_max_pdu_size, tvb, OFF_HEADER_VARIABLE_AREA + 2, 2, ENC_LITTLE_ENDIAN);
+        if(header_len > SIZE_DEFAULT_HEADER) {
+            if((header_byte & HF_FLAG_SYN) != 0) {
+                proto_tree_add_item(cattp_header_tree, hf_cattp_max_pdu_size, tvb, OFF_HEADER_VARIABLE_AREA, 2, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(cattp_header_tree, hf_cattp_max_sdu_size, tvb, OFF_HEADER_VARIABLE_AREA + 2, 2, ENC_LITTLE_ENDIAN);
+            } else if((header_byte & HF_FLAG_EACK) != 0) {
+                int eack;
+                int num_eacks = (header_len - SIZE_DEFAULT_HEADER)/2;
+                for(eack=0; eack<num_eacks; eack++) {
+                    proto_tree_add_item(cattp_header_tree, hf_cattp_eack_nb, tvb, OFF_HEADER_VARIABLE_AREA + (eack*2), 2, ENC_LITTLE_ENDIAN);
+                }
+            }
         }
+        
 
         proto_tree_add_item(cattp_data_tree, hf_cattp_data, tvb, header_len, data_len, ENC_STR_HEX);
 
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%d➞%d [%s] Seq=%d Ack=%d Win=%d Len=%d",
+        col_add_fstr(pinfo->cinfo, COL_INFO, "%d➞%d [%s] Seq=%d Ack=%d Win=%d DataLen=%d",
                                                 tvb_get_letohs(tvb, OFF_SRC_PORT),
                                                 tvb_get_letohs(tvb, OFF_DST_PORT),
                                                 flag_str,
@@ -120,8 +135,8 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 }
 
 static gboolean dissect_cattp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
-    if(tvb_length(tvb) < 0x12 ||
-        tvb_get_guint8(tvb, 3) < 0x12 ||
+    if(tvb_length(tvb) < SIZE_DEFAULT_HEADER ||
+        tvb_get_guint8(tvb, 3) < SIZE_DEFAULT_HEADER ||
         tvb_get_guint8(tvb, 3) + tvb_get_letohs(tvb, 8) != tvb_length(tvb)
         ) {
         return FALSE;
@@ -190,6 +205,9 @@ void proto_register_cattp(void) {
         { &hf_cattp_header_variable_len, {
             "Header Variable Area Length", "cattp.header_variable_len", FT_UINT16, BASE_DEC,
             NULL, 0, NULL, HFILL }},
+        { &hf_cattp_header_variable_area, {
+            "Header Variable Area", "cattp.header_variable", FT_BYTES, BASE_NONE,
+            NULL, 0, NULL, HFILL }},
         { &hf_cattp_data, {
             "Data", "cattp.data", FT_BYTES, BASE_NONE,
             NULL, 0, NULL, HFILL }}
@@ -198,6 +216,7 @@ void proto_register_cattp(void) {
     static gint *ett[] = {
         &ett_cattp,
         &ett_cattp_header,
+        &ett_cattp_header_variable_area,
         &ett_cattp_data
     };
 
