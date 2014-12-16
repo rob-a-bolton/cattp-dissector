@@ -30,6 +30,7 @@ static int hf_cattp_max_sdu_size = -1;
 static int hf_cattp_max_pdu_size = -1;
 static int hf_cattp_header_variable_len = -1;
 static int hf_cattp_header_variable_area = -1;
+static int hf_cattp_rst_reason = -1;
 static int hf_cattp_data = -1;
 static int hf_cattp_eack_nbs = -1;
 static int hf_cattp_eack_nb = -1;
@@ -42,6 +43,14 @@ static int hf_cattp_eack_nb = -1;
 #define HF_FLAG_RST 0x10
 #define HF_FLAG_NUL 0x08
 #define HF_FLAG_SEG 0x04
+
+#define RST_REASON_NORMAL 0x00
+#define RST_REASON_ILLEGAL_PARAMS 0x01
+#define RST_REASON_TEMPORARILY_UNAVAILABLE 0x02
+#define RST_REASON_PORT_UNAVAILABLE 0x03
+#define RST_REASON_UNEXPECTED_PDU 0x04
+#define RST_REASON_MAX_RETRIES 0x05
+#define RST_REASON_VERSION_UNSUPPORTED 0x06
 
 #define OFF_HEADER_LEN 0x03
 #define OFF_SRC_PORT 0x04
@@ -70,6 +79,17 @@ static const value_string header_flag_vals[] = {
     { HF_FLAG_RST, "RST" },
     { HF_FLAG_NUL, "NUL" },
     { HF_FLAG_SEG, "SEG" },
+    { 0, NULL}
+};
+
+static const value_string rst_reasons_vals[] = {
+    { RST_REASON_NORMAL, "Normal ending" },
+    { RST_REASON_ILLEGAL_PARAMS, "Connection set-up failed, illegal parameters" },
+    { RST_REASON_TEMPORARILY_UNAVAILABLE, "Temporarily unable to set up this connection" },
+    { RST_REASON_PORT_UNAVAILABLE, "Requested port unavailable" },
+    { RST_REASON_UNEXPECTED_PDU, "Unexpected PDU received" },
+    { RST_REASON_MAX_RETRIES, "Maximum retries exceeded" },
+    { RST_REASON_VERSION_UNSUPPORTED, "Version not supported" },
     { 0, NULL}
 };
 
@@ -115,6 +135,8 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
                 for(eack=0; eack<num_eacks; eack++) {
                     proto_tree_add_item(cattp_header_tree, hf_cattp_eack_nb, tvb, OFF_HEADER_VARIABLE_AREA + (eack*2), 2, ENC_LITTLE_ENDIAN);
                 }
+            } else if((header_byte & HF_FLAG_RST) != 0) {
+                proto_tree_add_item(cattp_header_tree, hf_cattp_rst_reason, tvb, OFF_HEADER_VARIABLE_AREA, 1, ENC_LITTLE_ENDIAN);
             }
         }
         
@@ -208,6 +230,9 @@ void proto_register_cattp(void) {
         { &hf_cattp_header_variable_area, {
             "Header Variable Area", "cattp.header_variable", FT_BYTES, BASE_NONE,
             NULL, 0, NULL, HFILL }},
+        { &hf_cattp_rst_reason, {
+            "RST Reason", "cattp.rst_reasons", FT_UINT8, BASE_DEC,
+            VALS (rst_reasons_vals), 0, NULL, HFILL }},
         { &hf_cattp_data, {
             "Data", "cattp.data", FT_BYTES, BASE_NONE,
             NULL, 0, NULL, HFILL }}
