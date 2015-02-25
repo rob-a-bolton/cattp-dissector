@@ -104,7 +104,7 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     col_clear(pinfo->cinfo, COL_INFO);
     if(tree) {
         guint8 header_len = tvb_get_guint8(tvb, 3);
-        guint16 data_len = tvb_get_letohs(tvb, 8);
+        guint16 data_len = tvb_get_ntohs(tvb, 8);
         int full_len = header_len + data_len;
         
         guint8 header_byte = tvb_get_guint8(tvb, 0);
@@ -114,29 +114,29 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         cattp_tree = proto_item_add_subtree(ti, ett_cattp);
         cattp_header_tree = proto_item_add_subtree(cattp_tree, ett_cattp_header);
         cattp_data_tree = proto_item_add_subtree(cattp_tree, ett_cattp_data);
-        proto_tree_add_bitmask(cattp_header_tree, tvb, 0, hf_cattp_flags, ett_cattp_header, flag_fields, ENC_LITTLE_ENDIAN);//TODO: use tfs_set_notset successfully to show up nicer
-        proto_tree_add_item(cattp_header_tree, hf_cattp_version, tvb, 0x00, 1, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_header_len, tvb, OFF_HEADER_LEN, 1, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_src_port, tvb, OFF_SRC_PORT, 2, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_dst_port, tvb, OFF_DST_PORT, 2, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_data_len, tvb, OFF_DATA_LEN, 2, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_seq_nb, tvb, OFF_SEQ_NB, 2, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_ack_nb, tvb, OFF_ACK_NB, 2, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_win_size, tvb, OFF_WIN_SIZE, 2, ENC_LITTLE_ENDIAN);
-        proto_tree_add_item(cattp_header_tree, hf_cattp_checksum, tvb, OFF_CHECKSUM, 2, ENC_LITTLE_ENDIAN);
+        proto_tree_add_bitmask(cattp_header_tree, tvb, 0, hf_cattp_flags, ett_cattp_header, flag_fields, ENC_BIG_ENDIAN);//TODO: use tfs_set_notset successfully to show up nicer
+        proto_tree_add_item(cattp_header_tree, hf_cattp_version, tvb, 0x00, 1, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_header_len, tvb, OFF_HEADER_LEN, 1, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_src_port, tvb, OFF_SRC_PORT, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_dst_port, tvb, OFF_DST_PORT, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_data_len, tvb, OFF_DATA_LEN, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_seq_nb, tvb, OFF_SEQ_NB, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_ack_nb, tvb, OFF_ACK_NB, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_win_size, tvb, OFF_WIN_SIZE, 2, ENC_BIG_ENDIAN);
+        proto_tree_add_item(cattp_header_tree, hf_cattp_checksum, tvb, OFF_CHECKSUM, 2, ENC_BIG_ENDIAN);
 
         if(header_len > SIZE_DEFAULT_HEADER) {
             if((header_byte & HF_FLAG_SYN) != 0) {
-                proto_tree_add_item(cattp_header_tree, hf_cattp_max_pdu_size, tvb, OFF_HEADER_VARIABLE_AREA, 2, ENC_LITTLE_ENDIAN);
-                proto_tree_add_item(cattp_header_tree, hf_cattp_max_sdu_size, tvb, OFF_HEADER_VARIABLE_AREA + 2, 2, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(cattp_header_tree, hf_cattp_max_pdu_size, tvb, OFF_HEADER_VARIABLE_AREA, 2, ENC_BIG_ENDIAN);
+                proto_tree_add_item(cattp_header_tree, hf_cattp_max_sdu_size, tvb, OFF_HEADER_VARIABLE_AREA + 2, 2, ENC_BIG_ENDIAN);
             } else if((header_byte & HF_FLAG_EACK) != 0) {
                 int eack;
                 int num_eacks = (header_len - SIZE_DEFAULT_HEADER)/2;
                 for(eack=0; eack<num_eacks; eack++) {
-                    proto_tree_add_item(cattp_header_tree, hf_cattp_eack_nb, tvb, OFF_HEADER_VARIABLE_AREA + (eack*2), 2, ENC_LITTLE_ENDIAN);
+                    proto_tree_add_item(cattp_header_tree, hf_cattp_eack_nb, tvb, OFF_HEADER_VARIABLE_AREA + (eack*2), 2, ENC_BIG_ENDIAN);
                 }
             } else if((header_byte & HF_FLAG_RST) != 0) {
-                proto_tree_add_item(cattp_header_tree, hf_cattp_rst_reason, tvb, OFF_HEADER_VARIABLE_AREA, 1, ENC_LITTLE_ENDIAN);
+                proto_tree_add_item(cattp_header_tree, hf_cattp_rst_reason, tvb, OFF_HEADER_VARIABLE_AREA, 1, ENC_BIG_ENDIAN);
             }
         }
         
@@ -144,13 +144,13 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
         proto_tree_add_item(cattp_data_tree, hf_cattp_data, tvb, header_len, data_len, ENC_STR_HEX);
 
         col_add_fstr(pinfo->cinfo, COL_INFO, "%d➞%d [%s] Seq=%d Ack=%d Win=%d DataLen=%d",
-                                                tvb_get_letohs(tvb, OFF_SRC_PORT),
-                                                tvb_get_letohs(tvb, OFF_DST_PORT),
+                                                tvb_get_ntohs(tvb, OFF_SRC_PORT),
+                                                tvb_get_ntohs(tvb, OFF_DST_PORT),
                                                 flag_str,
-                                                tvb_get_letohs(tvb, OFF_SEQ_NB),
-                                                tvb_get_letohs(tvb, OFF_ACK_NB),
-                                                tvb_get_letohs(tvb, OFF_WIN_SIZE),
-                                                tvb_get_letohs(tvb, OFF_DATA_LEN));
+                                                tvb_get_ntohs(tvb, OFF_SEQ_NB),
+                                                tvb_get_ntohs(tvb, OFF_ACK_NB),
+                                                tvb_get_ntohs(tvb, OFF_WIN_SIZE),
+                                                tvb_get_ntohs(tvb, OFF_DATA_LEN));
     }
 
     return TRUE;
@@ -159,7 +159,7 @@ static gboolean dissect_cattp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 static gboolean dissect_cattp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
     if(tvb_length(tvb) < SIZE_DEFAULT_HEADER ||
         tvb_get_guint8(tvb, 3) < SIZE_DEFAULT_HEADER ||
-        tvb_get_guint8(tvb, 3) + tvb_get_letohs(tvb, 8) != tvb_length(tvb)
+        tvb_get_guint8(tvb, 3) + tvb_get_ntohs(tvb, 8) != tvb_length(tvb)
         ) {
         return FALSE;
     }
@@ -223,6 +223,9 @@ void proto_register_cattp(void) {
             NULL, 0, NULL, HFILL }},
         { &hf_cattp_max_pdu_size, {
             "Maximum PDU Size", "cattp.max_pdu_size", FT_UINT16, BASE_DEC,
+            NULL, 0, NULL, HFILL }},
+        { &hf_cattp_eack_nb, {
+            "Out Of Sequence Acknowledgement Number", "cattp.eack_nb", FT_UINT16, BASE_DEC,
             NULL, 0, NULL, HFILL }},
         { &hf_cattp_header_variable_len, {
             "Header Variable Area Length", "cattp.header_variable_len", FT_UINT16, BASE_DEC,
